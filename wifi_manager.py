@@ -8,6 +8,7 @@ import network
 import socket
 import re
 import time
+from ucryptolib import aes
 
 
 class WifiManager:
@@ -33,16 +34,48 @@ class WifiManager:
         # The file were the credentials will be stored.
         # There is no encryption, it's just a plain text archive. Be aware of this security problem!
         self.wifi_credentials = 'wifi.dat'
-        
+        self.private_key = 'key.dat'
         # Prevents the device from automatically trying to connect to the last saved network without first going through the steps defined in the code.
         self.wlan_sta.disconnect()
         
         # Change to True if you want the device to reboot after configuration.
         # Useful if you're having problems with web server applications after WiFi configuration.
         self.reboot = reboot
-        
         self.debug = debug
-
+        
+    def read_keys(self):
+        lines = []
+        try:
+            with open(self.private_key) as file:
+                lines = file.readlines()
+        except Exception as error:
+            if self.debug:
+                print(error)
+            pass
+        p_key = None
+        for line in lines:
+            name, key = line.strip().split(';')
+            p_key = key
+        return p_key.encode('utf-8')
+    
+        # Function to encrypt a string using AES
+    def encrypt_string(self, input_string ):
+        print(self.read_keys())
+        key = self.read_keys()
+        cipher = aes(key, 1)
+        input_string = input_string.encode('utf-8')
+        # Ensure the input string length is a multiple of 16 (AES block size)
+        padded_input = input_string + b'\x00' * (16 - len(input_string) % 16)
+        encrypted = cipher.encrypt(padded_input)
+        return encrypted
+    
+    # Function to decrypt an AES-encrypted string
+    def decrypt_string(self, encrypted_string ):
+        cipher = aes(self.read_keys(), 1)
+        encrypted_string = encrypted_string
+        decrypted = cipher.decrypt(encrypted_string)
+        return decrypted.rstrip(b'\x00')  # Remove padding
+     
 
     def connect(self):
         if self.wlan_sta.isconnected():
@@ -72,14 +105,25 @@ class WifiManager:
 
 
     def write_credentials(self, profiles):
+        print('use write_credentials')
+        
         lines = []
         for ssid, password in profiles.items():
-            lines.append('{0};{1}\n'.format(ssid, password))
+            print(ssid)
+            print(password)
+            en_password = self.encrypt_string(password)
+            print(en_password)
+            lines.append('{0};{1}\n'.format(ssid, en_password))
         with open(self.wifi_credentials, 'w') as file:
             file.write(''.join(lines))
+        file =   open(self.wifi_credentials, 'w')  
+        print(file)
+        
+
 
 
     def read_credentials(self):
+        print('use read credentials')
         lines = []
         try:
             with open(self.wifi_credentials) as file:
@@ -91,9 +135,12 @@ class WifiManager:
         profiles = {}
         for line in lines:
             ssid, password = line.strip().split(';')
-            profiles[ssid] = password
+            print(self.decrypt_string(password))
+            profiles[ssid] = self.decrypt_string(password)
         return profiles
+    
 
+        
 
     def wifi_connect(self, ssid, password):
         print('Trying to connect to:', ssid)
@@ -310,6 +357,7 @@ class WifiManager:
                 """.format(ssid, self.wlan_sta.ifconfig()[0]))
                 profiles = self.read_credentials()
                 profiles[ssid] = password
+                print(profiles[ssid])
                 self.write_credentials(profiles)
                 time.sleep(5)
             else:
@@ -369,5 +417,7 @@ class WifiManager:
                 appnd(item)
 
         return b''.join(res)
+
+
 
 
