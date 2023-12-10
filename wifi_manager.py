@@ -56,11 +56,10 @@ class WifiManager:
         for line in lines:
             name, key = line.strip().split(';')
             p_key = key
-        return p_key.encode('utf-8')
+        return eval(p_key)
     
         # Function to encrypt a string using AES
     def encrypt_string(self, input_string ):
-        print(self.read_keys())
         key = self.read_keys()
         cipher = aes(key, 1)
         input_string = input_string.encode('utf-8')
@@ -72,7 +71,7 @@ class WifiManager:
     # Function to decrypt an AES-encrypted string
     def decrypt_string(self, encrypted_string ):
         cipher = aes(self.read_keys(), 1)
-        encrypted_string = encrypted_string
+        encrypted_string = eval(encrypted_string)
         decrypted = cipher.decrypt(encrypted_string)
         return decrypted.rstrip(b'\x00')  # Remove padding
      
@@ -216,6 +215,7 @@ class WifiManager:
 
     def send_response(self, payload, status_code = 200):
         self.send_header(status_code)
+        body = """<body>{0}</body></html>""".format(payload)
         self.client.sendall("""
             <!DOCTYPE html>
             <html lang="en">
@@ -225,11 +225,67 @@ class WifiManager:
                     <meta name="viewport" content="width=device-width, initial-scale=1">
                     <link rel="icon" href="data:,">
                 </head>
-                <body>
-                    {0}
-                </body>
-            </html>
-        """.format(payload))
+                <style>
+                    body {
+                    background-color: #121212;
+                    color: #b3b3b3;
+                    margin: 0;
+                    padding: 0;
+                    position: absolute;
+                    top: 40%;
+                    left: 50%;
+                    transform: translate(-50%, -50%);
+                    -ms-transform: translate(-50%, -50%);
+                    }
+
+
+                    header {
+                    text-align: center;
+                    padding: 1em;
+                    background-color: #1a1a1a;
+                    }
+
+                    h1 {
+                    color: #29d8ff;
+                    }
+
+                    section {
+                    padding: 2em;
+                    }
+
+                    .container {
+                    max-width: 800px;
+                    margin: 0 auto;
+                    }
+
+                    .button {
+                    display: inline-block;
+                    padding: 10px 20px;
+                    margin: 10px 0;
+                    font-size: 1em;
+                    text-align: center;
+                    text-decoration: none;
+                    border: 2px solid #29d8ff;
+                    color: #29d8ff;
+                    border-radius: 5px;
+                    transition: background-color 0.3s, color 0.3s;
+                    }
+
+                    .button:hover {
+                    background-color: #29d8ff;
+                    color: #121212;
+                    }
+
+                    footer {
+                    text-align: center;
+                    padding: 1em;
+                    background-color: #1a1a1a;
+                    position: fixed;
+                    bottom: 0;
+                    width: 100%;
+                    }
+                </style>
+                """ + body)
         self.client.close()
 
 
@@ -417,6 +473,7 @@ class WifiManager:
                 appnd(item)
 
         return b''.join(res)
+
 
 
 
