@@ -57,4 +57,5 @@ Returns a tuple with the network interface parameters: IP address, subnet mask, 
 ## Thanks To
 
 https://github.com/tayfunulu/WiFiManager/
+
 https://github.com/ferreira-igor/micropython-wifi_manager
