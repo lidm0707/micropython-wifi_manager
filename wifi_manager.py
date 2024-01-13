@@ -9,6 +9,9 @@ import socket
 import re
 import time
 from ucryptolib import aes
+from html import head
+from css import css
+from umqtt.simple import MQTTClient
 
 
 class WifiManager:
@@ -17,6 +20,7 @@ class WifiManager:
         self.wlan_sta = network.WLAN(network.STA_IF)
         self.wlan_sta.active(True)
         self.wlan_ap = network.WLAN(network.AP_IF)
+        self.MQTTClient = MQTTClient
         
         # Avoids simple mistakes with wifi ssid and password lengths, but doesn't check for forbidden or unsupported characters.
         if len(ssid) > 32:
@@ -181,9 +185,9 @@ class WifiManager:
                     while True:
                         if '\r\n\r\n' in self.request:
                             # Fix for Safari browser
-                            self.request += self.client.recv(512)
+                            self.request += self.client.recv(1024)
                             break
-                        self.request += self.client.recv(128)
+                        self.request += self.client.recv(256)
                 except Exception as error:
                     # It's normal to receive timeout errors in this stage, we can safely ignore them.
                     if self.debug:
@@ -216,150 +220,13 @@ class WifiManager:
     def send_response(self, payload, status_code = 200):
         self.send_header(status_code)
         body = """<body>{0}</body></html>""".format(payload)
-        self.client.sendall("""
-            <!DOCTYPE html>
-            <html lang="en">
-                <head>
-                    <title>WiFi Manager</title>
-                    <meta charset="UTF-8">
-                    <meta name="viewport" content="width=device-width, initial-scale=1">
-                    <link rel="icon" href="data:,">
-                </head>
-                <style>
-                    body {
-                    background-color: #121212;
-                    color: #b3b3b3;
-                    margin: 0;
-                    padding: 0;
-                    position: absolute;
-                    top: 40%;
-                    left: 50%;
-                    transform: translate(-50%, -50%);
-                    -ms-transform: translate(-50%, -50%);
-                    }
-
-
-                    header {
-                    text-align: center;
-                    padding: 1em;
-                    background-color: #1a1a1a;
-                    }
-
-                    h1 {
-                    color: #29d8ff;
-                    }
-
-                    section {
-                    padding: 2em;
-                    }
-
-                    .container {
-                    max-width: 800px;
-                    margin: 0 auto;
-                    }
-
-                    .button {
-                    display: inline-block;
-                    padding: 10px 20px;
-                    margin: 10px 0;
-                    font-size: 1em;
-                    text-align: center;
-                    text-decoration: none;
-                    border: 2px solid #29d8ff;
-                    color: #29d8ff;
-                    border-radius: 5px;
-                    transition: background-color 0.3s, color 0.3s;
-                    }
-
-                    .button:hover {
-                    background-color: #29d8ff;
-                    color: #121212;
-                    }
-
-                    footer {
-                    text-align: center;
-                    padding: 1em;
-                    background-color: #1a1a1a;
-                    position: fixed;
-                    bottom: 0;
-                    width: 100%;
-                    }
-                </style>
-                """ + body)
+        self.client.sendall(head + css + body)
         self.client.close()
 
 
     def handle_root(self):
         self.send_header()
-        self.client.sendall("""
-            <!DOCTYPE html>
-            <html lang="en">
-                <head>
-                    <title>WiFi Manager</title>
-                    <meta charset="UTF-8">
-                    <meta name="viewport" content="width=device-width, initial-scale=1">
-                    <link rel="icon" href="data:,">
-                </head>
-                <style>
-                    body {
-                    background-color: #121212;
-                    color: #b3b3b3;
-                    margin: 0;
-                    padding: 0;
-                    position: absolute;
-                    top: 40%;
-                    left: 50%;
-                    transform: translate(-50%, -50%);
-                    -ms-transform: translate(-50%, -50%);
-                    }
-
-
-                    header {
-                    text-align: center;
-                    padding: 1em;
-                    background-color: #1a1a1a;
-                    }
-
-                    h1 {
-                    color: #29d8ff;
-                    }
-
-                    section {
-                    padding: 2em;
-                    }
-
-                    .container {
-                    max-width: 800px;
-                    margin: 0 auto;
-                    }
-
-                    .button {
-                    display: inline-block;
-                    padding: 10px 20px;
-                    margin: 10px 0;
-                    font-size: 1em;
-                    text-align: center;
-                    text-decoration: none;
-                    border: 2px solid #29d8ff;
-                    color: #29d8ff;
-                    border-radius: 5px;
-                    transition: background-color 0.3s, color 0.3s;
-                    }
-
-                    .button:hover {
-                    background-color: #29d8ff;
-                    color: #121212;
-                    }
-
-                    footer {
-                    text-align: center;
-                    padding: 1em;
-                    background-color: #1a1a1a;
-                    position: fixed;
-                    bottom: 0;
-                    width: 100%;
-                    }
-                </style>
+        self.client.sendall(head + css + """
                 <body>
                     <h1>WiFi Manager</h1>
                     <form action="/configure" method="post" accept-charset="utf-8">
@@ -386,7 +253,7 @@ class WifiManager:
         # Send the HTML to the client
         self.client.sendall(dropdown_html)
         self.client.sendall("""
-                        <p><label for="password">Password:&nbsp;</label><input class ="button" type="password" id="password" name="password"></p>
+                        <p><label for="password">Password:&nbsp;</label><input class ="button" type="password" name="password"></p>
                         <p><input type="submit" value="Connect" class ="button" ></p>
                     </form>
                 </body>
@@ -396,10 +263,15 @@ class WifiManager:
 
 
     def handle_configure(self):
-        match = re.search('ssid=([^&]*)&password=(.*)', self.url_decode(self.request))
+        print(self.url_decode(self.request))
+        match = re.search('ssid=([^&]*)&password=(.*)&mqtt=(.*)&topic=(.*)&usermqtt=(.*)&passmqtt=(.*)', self.url_decode(self.request))
         if match:
             ssid = match.group(1).decode('utf-8')
             password = match.group(2).decode('utf-8')
+            mqtt = match.group(3).decode('utf-8')
+            topic = match.group(4).decode('utf-8')
+            usermqtt = match.group(5).decode('utf-8')
+            passmqtt = match.group(6).decode('utf-8')
             if len(ssid) == 0:
                 self.send_response("""
                     <p>SSID must be providaded!</p>
@@ -473,8 +345,3 @@ class WifiManager:
                 appnd(item)
 
         return b''.join(res)
-
-
-
-
-
