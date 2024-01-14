@@ -1,3 +1,4 @@
 .lh
-wifi.dat
-key.dat
+config.js
+test.py
+mqtt_manager.py

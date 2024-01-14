@@ -10,9 +10,9 @@ import re
 import time
 from ucryptolib import aes
 from html import head
+from html import botton_submitt
 from css import css
-from umqtt.simple import MQTTClient
-
+import ujson
 
 class WifiManager:
 
@@ -20,7 +20,6 @@ class WifiManager:
         self.wlan_sta = network.WLAN(network.STA_IF)
         self.wlan_sta.active(True)
         self.wlan_ap = network.WLAN(network.AP_IF)
-        self.MQTTClient = MQTTClient
         
         # Avoids simple mistakes with wifi ssid and password lengths, but doesn't check for forbidden or unsupported characters.
         if len(ssid) > 32:
@@ -37,8 +36,7 @@ class WifiManager:
         
         # The file were the credentials will be stored.
         # There is no encryption, it's just a plain text archive. Be aware of this security problem!
-        self.wifi_credentials = 'wifi.dat'
-        self.private_key = 'key.dat'
+        self.config = 'config.json'
         # Prevents the device from automatically trying to connect to the last saved network without first going through the steps defined in the code.
         self.wlan_sta.disconnect()
         
@@ -46,50 +44,22 @@ class WifiManager:
         # Useful if you're having problems with web server applications after WiFi configuration.
         self.reboot = reboot
         self.debug = debug
-        
-    def read_keys(self):
-        lines = []
-        try:
-            with open(self.private_key) as file:
-                lines = file.readlines()
-        except Exception as error:
-            if self.debug:
-                print(error)
-            pass
-        p_key = None
-        for line in lines:
-            name, key = line.strip().split(';')
-            p_key = key
-        return eval(p_key)
-    
-        # Function to encrypt a string using AES
-    def encrypt_string(self, input_string ):
-        key = self.read_keys()
-        cipher = aes(key, 1)
-        input_string = input_string.encode('utf-8')
-        # Ensure the input string length is a multiple of 16 (AES block size)
-        padded_input = input_string + b'\x00' * (16 - len(input_string) % 16)
-        encrypted = cipher.encrypt(padded_input)
-        return encrypted
-    
-    # Function to decrypt an AES-encrypted string
-    def decrypt_string(self, encrypted_string ):
-        cipher = aes(self.read_keys(), 1)
-        encrypted_string = eval(encrypted_string)
-        decrypted = cipher.decrypt(encrypted_string)
-        return decrypted.rstrip(b'\x00')  # Remove padding
+
      
 
     def connect(self):
         if self.wlan_sta.isconnected():
             return
-        profiles = self.read_credentials()
+        profiles = self.readConfigWifi()
+        print(profiles)
         for ssid, *_ in self.wlan_sta.scan():
             ssid = ssid.decode("utf-8")
-            if ssid in profiles:
-                password = profiles[ssid]
-                if self.wifi_connect(ssid, password):
-                    return
+            if profiles is not None:
+                if profiles['wifi']['id'] is not None:
+                    if ssid in profiles['wifi']['id']:
+                        password = profiles['wifi']['password']
+                        if self.wifi_connect(ssid, password):
+                            return
         print('Could not connect to any WiFi network. Starting the configuration portal...')
         self.web_server()
         
@@ -106,45 +76,43 @@ class WifiManager:
     def get_address(self):
         return self.wlan_sta.ifconfig()
 
+    def writeConfigWifi(self,id = None ,password = None):
+            key = 'wifi'
+            try:
+                with open('config.json') as file:
+                    data = ujson.load(file)
+                    # Check if key is in file
+                    if key in data:
+                        # Delete Key
+                        del data[key]
+                        cacheDict = dict(data)
+                        # Update Cached Dict
+                        cacheDict.update({key:{'id':id , 'password':password}})
+                        with open('config.json','w') as file:
+                            # Dump cached dict to json file
+                            ujson.dump(cacheDict, file)
+                            print('wifi is saved')            
+            except Exception as error:
+                if self.debug:
+                    print(error)
+                pass
 
-    def write_credentials(self, profiles):
-        print('use write_credentials')
-        
-        lines = []
-        for ssid, password in profiles.items():
-            print(ssid)
-            print(password)
-            en_password = self.encrypt_string(password)
-            print(en_password)
-            lines.append('{0};{1}\n'.format(ssid, en_password))
-        with open(self.wifi_credentials, 'w') as file:
-            file.write(''.join(lines))
-        file =   open(self.wifi_credentials, 'w')  
-        print(file)
-        
-
-
-
-    def read_credentials(self):
-        print('use read credentials')
-        lines = []
+    def readConfigWifi(self):
+        key = 'wifi'
+        print('use read Config')
         try:
-            with open(self.wifi_credentials) as file:
-                lines = file.readlines()
+            profiles = {}
+            with open(self.config) as file:
+                data = ujson.load(file)
+                if key in data:
+                    if profiles[key]['id'] is not None:
+                        profiles[key]['id'] = data[key]['password']
+            return profiles
         except Exception as error:
             if self.debug:
                 print(error)
             pass
-        profiles = {}
-        for line in lines:
-            ssid, password = line.strip().split(';')
-            print(self.decrypt_string(password))
-            profiles[ssid] = self.decrypt_string(password)
-        return profiles
-    
-
         
-
     def wifi_connect(self, ssid, password):
         print('Trying to connect to:', ssid)
         self.wlan_sta.connect(ssid, password)
@@ -252,26 +220,16 @@ class WifiManager:
 
         # Send the HTML to the client
         self.client.sendall(dropdown_html)
-        self.client.sendall("""
-                        <p><label for="password">Password:&nbsp;</label><input class ="button" type="password" name="password"></p>
-                        <p><input type="submit" value="Connect" class ="button" ></p>
-                    </form>
-                </body>
-            </html>
-        """)
+        self.client.sendall(botton_submitt)
         self.client.close()
 
 
     def handle_configure(self):
         print(self.url_decode(self.request))
-        match = re.search('ssid=([^&]*)&password=(.*)&mqtt=(.*)&topic=(.*)&usermqtt=(.*)&passmqtt=(.*)', self.url_decode(self.request))
+        match = re.search('ssid=([^&]*)&password=(.*)', self.url_decode(self.request))
         if match:
             ssid = match.group(1).decode('utf-8')
             password = match.group(2).decode('utf-8')
-            mqtt = match.group(3).decode('utf-8')
-            topic = match.group(4).decode('utf-8')
-            usermqtt = match.group(5).decode('utf-8')
-            passmqtt = match.group(6).decode('utf-8')
             if len(ssid) == 0:
                 self.send_response("""
                     <p>SSID must be providaded!</p>
@@ -283,10 +241,7 @@ class WifiManager:
                     <h1>{0}</h1>
                     <p>IP address: {1}</p>
                 """.format(ssid, self.wlan_sta.ifconfig()[0]))
-                profiles = self.read_credentials()
-                profiles[ssid] = password
-                print(profiles[ssid])
-                self.write_credentials(profiles)
+                self.writeConfigWifi(id = ssid , password = password)
                 time.sleep(5)
             else:
                 self.send_response("""
@@ -345,3 +300,4 @@ class WifiManager:
                 appnd(item)
 
         return b''.join(res)
+
