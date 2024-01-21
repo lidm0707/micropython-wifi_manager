@@ -12,10 +12,19 @@ head = """
                 </head>
 """
 
-botton_submitt = """
+root = """
+                <body>
+                    <h1>WiFi Manager</h1>
+                    <form action="/configure" method="post" accept-charset="utf-8">
+                        <select name="ssid" class ="button" >{0}</select>
                         <p><label for="password">Password:&nbsp;</label><input class ="button" type="password" name="password"></p>
                         <p><input type="submit" value="Connect" class ="button" ></p>
                     </form>
                 </body>
             </html>
+                    
+"""
+
+selectSSID = """
+                <option value="{0}" id="{0}">{0}</option>
 """

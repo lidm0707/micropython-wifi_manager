@@ -1,4 +1,5 @@
 .lh
-config.js
+config.json
 test.py
 mqtt_manager.py
+test
