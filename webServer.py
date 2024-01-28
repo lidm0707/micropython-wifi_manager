@@ -3,7 +3,7 @@ import socket
 import re
 from html import head
 from css import css
-
+import time
 
 #192.168.4.1
 class webServer:
@@ -34,7 +34,7 @@ class webServer:
                     self.request += self.client.recv(256)
                     print(self.request)
                     print("request")
-                    
+                    time.sleep(1)
             except Exception as error:
                 # It's normal to receive timeout errors in this stage, we can safely ignore them.
                 if self.debug:
@@ -110,5 +110,6 @@ class webServer:
 
 
     
+
 
 

@@ -54,7 +54,6 @@ class WifiManager:
         if self.wlanSta.isconnected():
             return
         profiles = self.readConfigWifi()
-        print(profiles)
         print("profiles")
             
         for ssid, *_ in self.wlanSta.scan():
@@ -64,7 +63,7 @@ class WifiManager:
                     if ssid in profiles['wifi']['id']:
                         password = profiles['wifi']['password']
                         if self.wifiConnect(ssid, password):
-                            return True
+                            return 
         print('Could not connect to any WiFi network. Starting the configuration portal...')
         
     
@@ -117,9 +116,6 @@ class WifiManager:
                         profiles[key] = {}
                         profiles[key]['id'] = data[key]['id']
                         profiles[key]['password'] = data[key]['password']
-                        print(profiles)
-            print(profiles)
-            print("profiles readddd")
             return profiles
         except Exception as error:
             if self.debug:
@@ -129,17 +125,19 @@ class WifiManager:
         
     def wifiConnect(self, ssid, password):
         print('Trying to connect to:', ssid)
-        self.wlanSta.connect(ssid, password)
-        for _ in range(100):
-            if self.wlanSta.isconnected():
-                print('\nConnected! Network information:', self.wlanSta.ifconfig())
-                return True
-            else:
-                print('.', end='')
-                time.sleep_ms(100)
-        print('\nConnection failed!')
-        self.wlanSta.disconnect()
-        return False
+        if(ssid != ''):
+            self.wlanSta.connect(ssid, password)
+            for _ in range(100):
+                if self.wlanSta.isconnected():
+                    print('\nConnected! Network information:', self.wlanSta.ifconfig())
+                    return True
+                else:
+                    print('.', end='')
+                    time.sleep(1)
+            print('\nConnection failed!')
+            self.wlanSta.disconnect()
+            return False
 
     
     
+

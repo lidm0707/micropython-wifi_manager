@@ -12,19 +12,32 @@ import machine
 
 
 wm = WifiManager()
-mqt = MqttManager()
+mqt = MqttManager(debug = True)
 web = webServer()
 routRoot = ''
-routConfig = 'config'
-stateWifi = not(wm.isConnected())
-stageMqtt = not(mqt.isConnected())
+routConfig = 'configure'
+stateWifi = not wm.isConnected()
+stageMqtt = not mqt.isConnected()
+wm.openAP(True)
 
+
+# ? I want change to object SeviceManger
 
 def pageConfig(url):
-    match = re.search('ssid=([^&]*)&password=(.*)', wm.urlDecode(url))
+    wifi = 'ssid=([^&]*)&password=(.*)'
+    mqttTOPIC = '&ip=(.*)&topicMQTT=(.*)'
+    mqttUSER = '&userMQTT=(.*)&passMQTT=(.*)'
+    regx = wifi+mqttTOPIC+mqttUSER
+    match = re.search(regx, web.urlDecode(url))
     if match:
         ssid = match.group(1).decode('utf-8')
         password = match.group(2).decode('utf-8')
+        ipQT = match.group(3).decode('utf-8')
+        topicQT = match.group(4).decode('utf-8')
+        userQT = match.group(5).decode('utf-8')
+        passQT = match.group(6).decode('utf-8')
+        print(ssid + password + ipQT + topicQT + userQT + passQT)
+        pass
         
         if len(ssid) == 0:
             web.sendResponse("""
@@ -34,8 +47,7 @@ def pageConfig(url):
         elif not wm.isConnected():
             wm.connect()
             if(not wm.isConnected()):
-                wm.wifiConnect(id = ssid , password = password)
-                if(not wm.isConnected()):
+                if(not wm.wifiConnect(ssid ,password)):
                     web.sendResponse("""
                         <p>Could not connect to</p>
                         <h1>{0}</h1>
@@ -44,12 +56,14 @@ def pageConfig(url):
                     time.sleep(5)
                 else:
                     wm.writeConfigWifi(id = ssid , password = password)
+                    mqt.writeConfig(id = userQT ,password = passQT,server = ipQT ,topic = topicQT)
                     web.sendResponse("""
                         <p>Successfully connected to</p>
                         <h1>{0}</h1>
                         <p>IP address: {1}</p>
-                    """.format(ssid, wm.wlanSta.scan()[0]))
+                    """.format(ssid, wm.getAddress()[0]))
                     time.sleep(5)
+                    wm.openAP(False)
                     machine.reset()
     else:
         web.sendResponse("""
@@ -58,6 +72,7 @@ def pageConfig(url):
         time.sleep(5)
     
 def pageRoot():
+    print('root')
     listSsid = []
     dropdownHtml = """ """
     for ssid, *_ in wm.scan():
@@ -65,28 +80,31 @@ def pageRoot():
         listSsid.append(ssid)
     for ssid in listSsid:
         dropdownHtml += selectSSID.format(ssid)
-    print(dropdownHtml)
     web.sendResponse(root.format(dropdownHtml))
 
 while stateWifi and stageMqtt:
-    stateWifi = not(wm.isConnected())
-    stageMqtt = not(mqt.isConnected())
+    stateWifi = not wm.isConnected()
+    stageMqtt = not mqt.isConnected()
     ## update state
     if(stateWifi):
         wm.connect()     
     if(stageMqtt):
         mqt.connect()
     #retry for conect   
-    wm.openAP(True)
+
     web.run()
-    path = web.rout()
-    
-    if path == routRoot:
-        pageRoot()
-    elif path == routConfig:
-        pageConfig(path)
+    path = ''
+    routOb = web.rout()
+    if(routOb != None):
+        path = routOb[0]
+        url = routOb[1]
+        if path == routRoot:
+            pageRoot()
+        elif path == routConfig:
+            pageConfig(url)
     time.sleep(5)
     
         
+
 
 

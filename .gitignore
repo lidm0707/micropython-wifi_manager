@@ -1,5 +1,4 @@
 .lh
 config.json
 test.py
-mqtt_manager.py
 test

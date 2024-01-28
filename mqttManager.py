@@ -1,6 +1,7 @@
 import time
 from umqtt.simple import MQTTClient
 from binascii import a2b_base64, b2a_base64, hexlify, unhexlify
+import ujson
 
 
 
@@ -17,10 +18,9 @@ class MqttManager:
     def isConnected(self):
         return self.stage
         
-    def writeConfig(self,id = None ,password = None):
+    def writeConfig(self,id,password,server,topic):
+            print('write mqtt')
             key = 'mqtt'
-            bytesPassword = password.encode()
-            password64 = b2a_base64(unhexlify(bytesPassword)).decode()
             try:
                 with open('config.json') as file:
                     data = ujson.load(file)
@@ -30,15 +30,13 @@ class MqttManager:
                         del data[key]
                         cacheDict = dict(data)
                         # Update Cached Dict
-                        cacheDict.update({key:{'id':id , 'password':password64}})
+                        cacheDict.update({key:{'id':id , 'password':password,'server':server,'topic':topic}})
                         with open('config.json','w') as file:
                             # Dump cached dict to json file
                             ujson.dump(cacheDict, file)
-                            self.isconnected
-                            print('saved')            
+                            print('mqtt is saved')            
             except Exception as error:
                 if self.debug:
-                    self.isconnected = False
                     print(error)
                 pass
 
@@ -46,18 +44,24 @@ class MqttManager:
         key = 'mqtt'
         print('use read Config')
         try:
-            profiles = {}
             with open(self.config) as file:
-                data = ujson.load(file)
+                data = ujson.load(file)           
                 if key in data:
-                    if profiles[key]['id'] is not None:
-                        password = hexlify(a2b_base64(data[key]['password'].encode()))
-                        profiles[key]['id'] = password
+                    print(key)
+                    if data[key]['id'] is not None:
+                        #password = hexlify(a2b_base64(data[key]['password'].encode())) 
+                        profiles = {}
+                        profiles[key] = {}
+                        profiles[key]['id'] = data[key]['id']
+                        profiles[key]['password'] = data[key]['password']
+                        profiles[key]['sever'] = data[key]['sever']
+                        profiles[key]['topic'] = data[key]['topic']
             return profiles
         except Exception as error:
             if self.debug:
                 print(error)
-            pass        
+            pass
+      
     
     def connect(self):
         profiles = self.readConfig()
@@ -75,3 +79,4 @@ class MqttManager:
             
         
     
+
