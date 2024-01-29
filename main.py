@@ -90,21 +90,34 @@ while stateWifi and stageMqtt:
         wm.connect()     
     if(stageMqtt):
         mqt.connect()
-    #retry for conect   
-
-    web.run()
-    path = ''
-    routOb = web.rout()
-    if(routOb != None):
-        path = routOb[0]
-        url = routOb[1]
-        if path == routRoot:
-            pageRoot()
-        elif path == routConfig:
-            pageConfig(url)
-    time.sleep(5)
+    #retry for conect
+    stateWifi = not wm.isConnected()
+    stageMqtt = not mqt.isConnected()
+    if(stateWifi and stageMqtt):
+        web.run()
+        path = ''
+        routOb = web.rout()
+        if(routOb != None):
+            path = routOb[0]
+            url = routOb[1]
+            if path == routRoot:
+                pageRoot()
+            elif path == routConfig:
+                pageConfig(url)
+        print("loop")
+        time.sleep(5)
     
+print("finish")
+try:
+    for i in range(10):
+        mqt.publish("hello/topic", "hello"+str(i))
+        print("hello"+str(i))
+        time.sleep(1)
         
+    mqt.publish("hello/topic", "disconect")
+except OSError: 
+    print('OSError')
+
 
 
 

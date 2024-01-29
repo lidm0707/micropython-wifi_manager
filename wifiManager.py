@@ -55,9 +55,10 @@ class WifiManager:
             return
         profiles = self.readConfigWifi()
         print("profiles")
-            
+        print(profiles)     
         for ssid, *_ in self.wlanSta.scan():
             ssid = ssid.decode("utf-8")
+            print(ssid)
             if profiles is not None:
                 if profiles['wifi']['id'] is not None:
                     if ssid in profiles['wifi']['id']:
