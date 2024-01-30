@@ -1,1 +1,1 @@
-{"wifi": {"id": "", "password": ""}, "mqtt": {"id": "admin", "password": "123456","server":"192.168.4.1","topic":"hello"}}
+{"wifi": {"id": "", "password": ""}, "mqtt": {"server": "192.168.4.1", "id": "admin", "password": "123456"}}

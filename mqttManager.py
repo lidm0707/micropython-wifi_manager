@@ -8,15 +8,17 @@ import ujson
 class MqttManager:
     def __init__(self,name ='mqttClient',debug = False):
         self.name = name
-        self.mqttC = MQTTClient
         self.stage = False
         self.debug = debug
         self.config = 'config.json'
+        self.network = 'mqtt'
+        self.mqttC = MQTTClient
+
     
     def isConnected(self):
         return self.stage
         
-    def writeConfig(self,id,password,server,topic):
+    def writeConfig(self,id,password,server):
             print('write mqtt')
             key = 'mqtt'
             try:
@@ -28,7 +30,7 @@ class MqttManager:
                         del data[key]
                         cacheDict = dict(data)
                         # Update Cached Dict
-                        cacheDict.update({key:{'id':id , 'password':password,'server':server,'topic':topic}})
+                        cacheDict.update({key:{'id':id , 'password':password,'server':server}})
                         with open(self.config,'w') as file:
                             # Dump cached dict to json file
                             ujson.dump(cacheDict, file)
@@ -52,7 +54,6 @@ class MqttManager:
                         profiles[key]['id'] = data[key]['id']
                         profiles[key]['password'] = data[key]['password']
                         profiles[key]['server'] = data[key]['server']
-                        profiles[key]['topic'] = data[key]['topic']
             return profiles
         except Exception as error:
             if self.debug:
@@ -62,25 +63,25 @@ class MqttManager:
     
     def connect(self):
         profiles = self.readConfig()
-        network = 'mqtt'
-        s = profiles[network]['server']
-        p = '1883'
-        u = profiles[network]['id']
-        ps = profiles[network]['password']
-        self.mqttC = self.mqttC(self.name, server = s,port =p , user = u ,password = ps )
-        try:  
-            self.mqttC.connect()
+        print(profiles)
+        if(profiles is not None):
+            s = profiles[self.network]['server']
+            p = '1883'
+            u = profiles[self.network]['id']
+            ps = profiles[self.network]['password']
+            self.c = self.mqttC(self.name, server = s,port =p , user = u ,password = ps)
+            self.c.connect()
             self.stage = True
-            print("Connected to %s, waiting " % s)
-        except OSError as error:
-            if self.debug:
-                print(error)
-            pass
-            print('can\'t connected')
-            print('Could not connect to any MQTT')
+            try:  
+                print('Connected to %s, waiting ' % s)
+            except OSError as error:
+                if self.debug:
+                    print(error)
+                pass
+                print('can\'t connected')
+                print('Could not connect to any MQTT')
             
     def publish(self,topic,msg):
-        self.mqttC.publish(topic,msg)
+        self.c.publish(topic,msg)
         
     
-
