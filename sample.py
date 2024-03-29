@@ -15,8 +15,6 @@ web = webServer()
 routRoot = ''
 routConfig = 'configure'
 wm.connect()     
-mqt.connect()
-print(mqt.isConnected())
 def callBack(callFn):
     return not callFn()
 
