@@ -36,7 +36,7 @@ class WebServer:
                     if b'\r\n\r\n' in self.request:
                         break
                     self.request += self.client.recv(256)
-                    time.sleep(3)
+                    time.sleep(1)
             except Exception as error:
                 if self.debug:
                     print(error)
