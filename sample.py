@@ -1,36 +1,38 @@
 from wifiManager import WifiManager
 from mqttManager import MqttManager
-from webServer import webServer
-from html import root 
-from html import selectSSID
-import re
+from webServer import WebServer
+from html import rootHTML , selectSSID
 import time
 import machine
+import _thread
 
 # Example of usage
 
 wm = WifiManager()
 mqt = MqttManager(debug = True)
-web = webServer()
-routRoot = ''
-routConfig = 'configure'
-wm.connect()     
-def callBack(callFn):
-    return not callFn()
+web = WebServer()
 
-
-def pageRoot():
+wm.openAP(True)   
+    
+@web.route('/')
+def root():
     print('root')
-    listSsid = []
-    dropdownHtml = ''' '''
-    for ssid, *_ in wm.scan():
-        ssid = ssid.decode('utf-8')
-        listSsid.append(ssid)
-    for ssid in listSsid:
-        dropdownHtml += selectSSID.format(ssid)
-    web.sendResponse(root.format(dropdownHtml))
+    
+    wm.connect()
+    
+    if(not wm.isConnected()):
+        listSsid = []
+        dropdownHtml = ''' '''
+        for ssid, *_ in wm.scan():
+            ssid = ssid.decode('utf-8')
+            listSsid.append(ssid)
+        for ssid in listSsid:
+            dropdownHtml += selectSSID.format(ssid)
+        web.sendResponse(rootHTML.format(dropdownHtml))
+        
 
-def pageConfig(url):
+@web.route('/configure')
+def configure():
     print('pageConfig')
     wifi = 'ssid=([^&]*)&password=(.*)'
     mqtt = '&ip=(.*)&username=(.*)&password=(.*)'
@@ -47,32 +49,21 @@ def pageConfig(url):
         ipQT = match.group(3).decode('utf-8')
         userQT = match.group(4).decode('utf-8')
         passQT = match.group(5).decode('utf-8')
-        pass
-        
         if len(ssid) == 0:
             web.sendResponse('''
                 <p>SSID must be providaded!</p>
                 <p>Go back and try again!</p>
             ''', 400)
-        elif callBack(wm.isConnected) or callBack(mqt.isConnected):
+        elif not wm.isConnected:
             wm.wifiConnect(ssid ,password)
-            if callBack(wm.isConnected):
+            if not wm.isConnected:
                 wm.writeConfigWifi(id = ssid , password = password)
                 mqt.writeConfig(id = userQT ,password = passQT,server = ipQT)
-                web.sendResponse("""
+                web.sendResponse('''
                     <p>Successfully connected to</p>
                     <h1>{0}</h1>
                     <p>IP address: {1}</p>
-                """.format(ssid, wm.getAddress()[0]))
-                time.sleep(5)
-                machine.reset()
-            elif callBack(mqt.isConnected):
-                mqt.writeConfig(id = userQT ,password = passQT,server = ipQT)
-                web.sendResponse("""
-                    <p>Successfully connected to</p>
-                    <h1>TRY connect MQTT</h1>
-                    <p>IP address: {1}</p>
-                """)
+                '''.format(ssid, wm.getAddress()[0]))
                 time.sleep(5)
                 machine.reset()
             else:
@@ -83,42 +74,29 @@ def pageConfig(url):
                 '''.format(ssid))
                 time.sleep(5)
 
-    
+def sendMqt():
+    try:
+        if(mqt.isConnected):
+            for i in range(10):
+                mqt.connect()
+                mqt.publish('hello/topic', 'hello'+str(i))
+                mqt.disconect()
+                print('hello'+str(i))
+                time.sleep(1)
+                
+            mqt.publish('hello/topic', 'disconect')
+    except OSError: 
+        print('OSError')
 
 
-wm.openAP(True)
-while callBack(wm.isConnected) or callBack(mqt.isConnected):
-    web.run()
-    path = ''
-    routOb = web.rout()
-    if(routOb != None):
-        path = routOb[0]
-        url = routOb[1]
-        if path == routRoot:
-            pageRoot()
-        elif path == routConfig:
-            pageConfig(url)
-            if callBack(wm.isConnected):
-                 wm.connect()     
-            if callBack(mqt.isConnected):
-                  mqt.connect()
-    print("loop")
-    time.sleep(1)
-    
-print('wifi connect')
-wm.openAP(False)
+
+_thread.start_new_thread(web.run, ())
+_thread.start_new_thread(sendMqt, ())
 
 
-try:
-    if(not callBack(mqt.isConnected)):
-        for i in range(10):
-            mqt.publish('hello/topic', 'hello'+str(i))
-            print('hello'+str(i))
-            time.sleep(1)
-            
-        mqt.publish('hello/topic', 'disconect')
-except OSError: 
-    print('OSError')
+
+
+
 
 
 

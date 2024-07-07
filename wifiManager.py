@@ -27,20 +27,15 @@ class WifiManager:
         else:
             self.apPASSWORD = password
             
-        # Set the access point authentication mode to WPA2-PSK.
         self.apAUTHMODE = 3
-        
-        # The file were the credentials will be stored.
-        # There is no encryption, it's just a plain text archive. Be aware of this security problem!
         self.config = 'config.json'
-        # Prevents the device from automatically trying to connect to the last saved network without first going through the steps defined in the code.
         self.wlanSta.disconnect()
         self.wlanSta.scan()
         
-        # Change to True if you want the device to reboot after configuration.
-        # Useful if you're having problems with web server applications after WiFi configuration.
+
         self.reboot = reboot
         self.debug = debug
+
 
     def openAP(self,state:True|False):
         self.wlanAp.active(state)

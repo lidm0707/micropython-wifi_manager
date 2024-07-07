@@ -12,7 +12,7 @@ head = """
                 </head>
 """
 
-root = """
+rootHTML = """
                 <body>
                     <h1>WiFi Manager</h1>
                     <form action="/configure" method="post" accept-charset="utf-8">

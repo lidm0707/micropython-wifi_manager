@@ -69,8 +69,8 @@ class MqttManager:
             p = '1883'
             u = profiles[self.network]['id']
             ps = profiles[self.network]['password']
-            self.c = self.mqttC(self.name, server = s,port =p , user = u ,password = ps)
-            self.c.connect()
+            self.clientMqtt = self.mqttC(self.name, server = s,port =p , user = u ,password = ps)
+            self.clientMqtt.connect()
             self.stage = True
             try:  
                 print('Connected to %s, waiting ' % s)
@@ -82,6 +82,9 @@ class MqttManager:
                 print('Could not connect to any MQTT')
             
     def publish(self,topic,msg):
-        self.c.publish(topic,msg)
+        self.clientMqtt.publish(topic,msg)
+        
+    def disconect(self):
+        self.clientMqtt.disconnect()
         
     

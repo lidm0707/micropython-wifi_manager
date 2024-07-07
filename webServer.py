@@ -1,14 +1,12 @@
-import network
 import socket
-import re
 from html import head
 from css import css
+import re
 import time
 
 #192.168.4.1
-class webServer:
-    def __init__(self,debug=False):
-        
+class WebServer:
+    def __init__(self, debug=False):
         self.debug = debug
         self.server_socket = socket.socket()
         self.server_socket.close()
@@ -16,44 +14,47 @@ class webServer:
         self.server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self.server_socket.bind(('', 80))
         self.server_socket.listen(1)
-        
-        
-        
+        self.routes = {}
+
+    def __addRoute(self, path, handler):
+        self.routes[path] = handler
+
+    def route(self, path):
+        def decorator(func):
+            self.__addRoute(path, func)
+            return func  # Return the function without calling it
+        return decorator
+
     def run(self):
-        print("start web")
-        self.client, addr = self.server_socket.accept()
-        self.request = b''
-        try:
-            self.client.settimeout(5.0)
+        print("Starting web server...")
+        while True:
+            self.client, addr = self.server_socket.accept()
+            self.request = b''
             try:
+                self.client.settimeout(5.0)
                 while True:
-                    if '\r\n\r\n' in self.request:
-                        # Fix for Safari browser
-                        self.request += self.client.recv(1024)
+                    if b'\r\n\r\n' in self.request:
                         break
                     self.request += self.client.recv(256)
-                    print(self.request)
-                    print("request")
-                    time.sleep(1)
+                    time.sleep(3)
             except Exception as error:
-                # It's normal to receive timeout errors in this stage, we can safely ignore them.
                 if self.debug:
                     print(error)
-                pass
 
-        except Exception as error:
-            if self.debug:
-                print(error)
-            return
+            if self.request:
+                url = re.search('(?:GET|POST) /(.*?)(?:\\?.*?)? HTTP', self.request).group(1).decode('utf-8').rstrip('/')
+                if(not url):
+                    url = '/'
+                print("stard routes")
+                # print(self.request)
+                print(self.routes)
+                print(url)
+                if url in self.routes:
+                    self.routes[url]()
+                else:
+                    self.sendResponse("404 Not Found", 404)
 
-            
     def urlDecode(self, urlString):
-
-        # Source: https://forum.micropython.org/viewtopic.php?t=3076
-        # unquote('abc%20def') -> b'abc def'
-        # Note: strings are encoded as UTF-8. This is only an issue if it contains
-        # unescaped non-ASCII characters, which URIs should not.
-
         if not urlString:
             return b''
 
@@ -83,30 +84,19 @@ class webServer:
                 appnd(b'%')
                 appnd(item)
         return b''.join(res)
-            
-    def rout(self):
-        if self.request and self.request != None:
-            if self.debug:
-                print(self.urlDecode(self.request))
-            url = re.search('(?:GET|POST) /(.*?)(?:\\?.*?)? HTTP', self.request).group(1).decode('utf-8').rstrip('/')
-            print(url)
-            print("self.request rout")
-            print(self.request)
-            print("rout")
-            return url , self.request
-        
-
-    def sendHeader(self, status_code = 200):
-        self.client.send("""HTTP/1.1 {0} OK\r\n""".format(status_code))
-        self.client.send("""Content-Type: text/html\r\n""")
-        self.client.send("""Connection: close\r\n""")
 
 
-    def sendResponse(self, payload, status_code = 200):
+    def sendHeader(self, status_code=200):
+        self.client.send(b"HTTP/1.1 {0} OK\r\n".format(status_code))
+        self.client.send(b"Content-Type: text/html\r\n")
+        self.client.send(b"Connection: close\r\n\r\n")
+
+    def sendResponse(self, payload, status_code=200):
         self.sendHeader(status_code)
-        body = """<body>{0}</body></html>""".format(payload)
+        body = "<body>{0}</body></html>".format(payload)
         self.client.sendall(head + css + body)
         self.client.close()
+        
 
 
     
