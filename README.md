@@ -1,6 +1,6 @@
 # WiFi Manager
 
-WiFi Manager for ESP8266 and ESP32 using MicroPython. It might work in any other board since it only uses standard MicroPython libraries, but that's not tested.
+WiFi Manager for ESP32 using MicroPython. It might work in any other board since it only uses standard MicroPython libraries, but that's not tested.
 
 ![ESP32](https://img.shields.io/badge/ESP-32-000000.svg?longCache=true&style=flat&colorA=CC101F)
 
