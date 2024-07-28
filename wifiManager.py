@@ -1,23 +1,15 @@
-# Author: Igor Ferreira
-# License: MIT
-# Version: 2.1.0
-# Description: WiFi Manager for ESP8266 and ESP32 using MicroPython.
-
 import network
 import socket
 import re
 import ujson
-#from binascii import a2b_base64, b2a_base64, hexlify, unhexlify
 import time
 
 class WifiManager:
-
-    def __init__(self, ssid = 'esp32-ap', password = '12345678', reboot = True, debug = False):
+    def __init__(self, ssid='esp32-ap', password='12345678', reboot=True, debug=False):
         self.wlanSta = network.WLAN(network.STA_IF)
         self.wlanSta.active(True)
         self.wlanAp = network.WLAN(network.AP_IF)
         
-        # Avoids simple mistakes with wifi ssid and password lengths, but doesn't check for forbidden or unsupported characters.
         if len(ssid) > 32:
             raise Exception('The SSID cannot be longer than 32 characters.')
         else:
@@ -31,21 +23,19 @@ class WifiManager:
         self.config = 'config.json'
         self.wlanSta.disconnect()
         self.wlanSta.scan()
-        
 
         self.reboot = reboot
         self.debug = debug
 
-
-    def openAP(self,state:True|False):
+    def openAP(self, state: bool):
         self.wlanAp.active(state)
         if state:
-            self.wlanAp.config(essid = self.apSSID, password = self.apPASSWORD, authmode = self.apAUTHMODE)
+            self.wlanAp.config(essid=self.apSSID, password=self.apPASSWORD, authmode=self.apAUTHMODE)
 
     def scan(self):
         return self.wlanSta.scan()
 
-    def connect(self):
+    def isConnected(self):
         if self.wlanSta.isconnected():
             return
         profiles = self.readConfigWifi()
@@ -61,67 +51,57 @@ class WifiManager:
                         if self.wifiConnect(ssid, password):
                             return 
         print('Could not connect to any WiFi network. Starting the configuration portal...')
-        
-    
+
     def disConnect(self):
         if self.wlanSta.isconnected():
             self.wlanSta.disconnect()
 
-
     def isConnected(self):
         return self.wlanSta.isconnected()
-
 
     def getAddress(self):
         return self.wlanSta.ifconfig()
 
-    def writeConfigWifi(self,id = None ,password = None):
-            key = 'wifi'
-            #bytesPassword = password.encode()
-            #password64 = b2a_base64(unhexlify(bytesPassword)).decode()
-            try:
-                with open('config.json') as file:
-                    data = ujson.load(file)
-                    # Check if key is in file
-                    if key in data:
-                        # Delete Key
-                        del data[key]
-                        cacheDict = dict(data)
-                        # Update Cached Dict
-                        cacheDict.update({key:{'id':id , 'password':password}})
-                        with open('config.json','w') as file:
-                            # Dump cached dict to json file
-                            ujson.dump(cacheDict, file)
-                            print('wifi is saved')            
-            except Exception as error:
-                if self.debug:
-                    print(error)
-                pass
+    def writeConfigWifi(self, id=None, password=None):
+        key = 'wifi'
+        try:
+            with open(self.config) as file:
+                data = ujson.load(file)
+                if key in data:
+                    del data[key]
+                cacheDict = dict(data)
+                cacheDict.update({key: {'id': id, 'password': password}})
+                with open(self.config, 'w') as file:
+                    ujson.dump(cacheDict, file)
+                    print('wifi is saved')
+        except Exception as error:
+            if self.debug:
+                print(error)
+            pass
 
     def readConfigWifi(self):
         key = 'wifi'
         print('use read Config')
         try:
             with open(self.config) as file:
-                data = ujson.load(file)           
+                data = ujson.load(file)
                 if key in data:
                     print(key)
                     if data[key]['id'] is not None:
-                        #password = hexlify(a2b_base64(data[key]['password'].encode())) 
                         profiles = {}
                         profiles[key] = {}
                         profiles[key]['id'] = data[key]['id']
                         profiles[key]['password'] = data[key]['password']
-            return profiles
+                        return profiles
         except Exception as error:
             if self.debug:
                 print(error)
             pass
+        return None
 
-        
     def wifiConnect(self, ssid, password):
         print('Trying to connect to:', ssid)
-        if(ssid != ''):
+        if ssid:
             self.wlanSta.connect(ssid, password)
             for _ in range(100):
                 if self.wlanSta.isconnected():
@@ -133,7 +113,3 @@ class WifiManager:
             print('\nConnection failed!')
             self.wlanSta.disconnect()
             return False
-
-    
-    
-

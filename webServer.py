@@ -1,19 +1,16 @@
 import socket
-from html import head
-from css import css
 import re
 import time
+from html import head
+from css import css
 
-#192.168.4.1
 class WebServer:
     def __init__(self, debug=False):
         self.debug = debug
-        self.server_socket = socket.socket()
-        self.server_socket.close()
         self.server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self.server_socket.bind(('', 80))
-        self.server_socket.listen(1)
+        self.server_socket.listen(4)
         self.routes = {}
 
     def __addRoute(self, path, handler):
@@ -22,39 +19,41 @@ class WebServer:
     def route(self, path):
         def decorator(func):
             self.__addRoute(path, func)
-            return func  # Return the function without calling it
+            return func
         return decorator
 
     def run(self):
         print("Starting web server...")
         while True:
-            self.client, addr = self.server_socket.accept()
-            self.request = b''
             try:
-                self.client.settimeout(5.0)
+                self.client, addr = self.server_socket.accept()
+                self.request = b''
                 while True:
                     if b'\r\n\r\n' in self.request:
                         break
-                    self.request += self.client.recv(256)
-                    time.sleep(1)
+                    data = self.client.recv(256)
+                    if not data:
+                        break
+                    self.request += data
+                check = self.requestX(r'(?:GET|POST) (\/.*?) HTTP\/')
+                if check:
+                    url = check.group(1).decode('utf-8').rstrip()
+                else:
+                    url = check
+                if url:
+                    if url in self.routes:
+                        self.routes[url](self.request)
+                    else:
+                        self.sendResponse("404 Not Found", 404)
+                self.client.close()
             except Exception as error:
                 if self.debug:
-                    print(error)
+                    print(f"Exception in run loop: {error}")
+                if self.client:
+                    self.client.close()
 
-            if self.request:
-                url = re.search('(?:GET|POST) /(.*?)(?:\\?.*?)? HTTP', self.request).group(1).decode('utf-8').rstrip('/')
-                if(not url):
-                    url = '/'
-                print("stard routes")
-                # print(self.request)
-                print(self.routes)
-                print(url)
-                if url in self.routes:
-                    self.routes[url]()
-                else:
-                    self.sendResponse("404 Not Found", 404)
-
-    def urlDecode(self, urlString):
+    def urlDecode(self):
+        urlString = self.request
         if not urlString:
             return b''
 
@@ -85,7 +84,6 @@ class WebServer:
                 appnd(item)
         return b''.join(res)
 
-
     def sendHeader(self, status_code=200):
         self.client.send(b"HTTP/1.1 {0} OK\r\n".format(status_code))
         self.client.send(b"Content-Type: text/html\r\n")
@@ -96,10 +94,8 @@ class WebServer:
         body = "<body>{0}</body></html>".format(payload)
         self.client.sendall(head + css + body)
         self.client.close()
-        
 
-
-    
-
-
-
+    def requestX(self, reg):
+        pattern = re.compile(reg)
+        res = pattern.search(self.urlDecode())
+        return res
