@@ -13,7 +13,7 @@ mqt = MqttManager(debug=True)
 web = WebServer(debug=True)
 
 
-def parse_qs(qs):
+def parseQs(qs):
     """ฟังก์ชันแยก query string เป็นพารามิเตอร์"""
     params = {}
     pairs = qs.split('&')
@@ -26,10 +26,10 @@ def parse_qs(qs):
 @web.route('/')
 def root(request):
     print('Received request at root:', request)
-    ssid_list = [ssid.decode('utf-8') for ssid, *_ in wm.scan()]
-    dropdown_html = ''.join(selectSSID.format(ssid) for ssid in ssid_list)
-    response_html = rootHTML.format(dropdown_html)
-    web.sendResponse(response_html)
+    ssidList = [ssid.decode('utf-8') for ssid, *_ in wm.scan()]
+    dropdownHtml = ''.join(selectSSID.format(ssid) for ssid in ssidList)
+    responseHtml = rootHTML.format(dropdownHtml)
+    web.sendResponse(responseHtml)
             
 @web.route('/configure')
 def configure(request):
@@ -41,14 +41,14 @@ def configure(request):
         web.sendResponse('<p>Invalid request format!</p><p>Please try again.</p>', 400)
         return
     
-    params = parse_qs(body.decode('utf-8'))
+    params = parseQs(body.decode('utf-8'))
     print(params)
 
     ssid = params.get('ssid', '')
     password = params.get('pwd', '')
-    ip_qt = params.get('ip', '')
-    user_qt = params.get('username', '')
-    pass_qt = params.get('pwdm', '')
+    ipQt = params.get('ip', '')
+    userQt = params.get('username', '')
+    passQt = params.get('pwdm', '')
 
     if not ssid:
         web.sendResponse('<p>SSID must be provided!</p><p>Please try again.</p>', 400)
@@ -60,21 +60,21 @@ def configure(request):
     
     if wm.isConnected():
         wm.writeConfigWifi(id=ssid, password=password)
-        mqt.writeConfig(id=user_qt, password=pass_qt, server=ip_qt)
-        ip_address = wm.getAddress()[0]
-        success_html = f'''
+        mqt.writeConfig(id=userQt, password=passQt, server=ipQt)
+        ipAddress = wm.getAddress()[0]
+        successHtml = f'''
             <p>Successfully connected to <strong>{ssid}</strong></p>
-            <p>IP address: {ip_address}</p>
+            <p>IP address: {ipAddress}</p>
             <p>MQTT configuration saved successfully.</p>
         '''
-        web.sendResponse(success_html)
+        web.sendResponse(successHtml)
         time.sleep(2)
     else:
-        error_html = f'''
+        errorHtml = f'''
             <p>Could not connect to <strong>{ssid}</strong></p>
             <p>Please check your credentials and try again.</p>
         '''
-        web.sendResponse(error_html, 400)
+        web.sendResponse(errorHtml, 400)
 
 def sendMqtt():
     print('Starting MQTT thread')
