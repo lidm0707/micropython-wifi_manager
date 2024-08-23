@@ -6,92 +6,99 @@ import time
 import machine
 import _thread
 
-# Example of usage
 _thread.stack_size(32 * 1024)
-wm = WifiManager()
+
+wm = WifiManager(debug=True)
 mqt = MqttManager(debug=True)
 web = WebServer(debug=True)
 
+
+def parse_qs(qs):
+    """ฟังก์ชันแยก query string เป็นพารามิเตอร์"""
+    params = {}
+    pairs = qs.split('&')
+    for pair in pairs:
+        if '=' in pair:
+            key, value = pair.split('=', 1)
+            params[key] = value
+    return params
+
 @web.route('/')
 def root(request):
-    print('root')
-    print(request)
-    listSsid = []
-    dropdownHtml = ''' '''
-    for ssid, *_ in wm.scan():
-        ssid = ssid.decode('utf-8')
-        listSsid.append(ssid)
-    for ssid in listSsid:
-        dropdownHtml += selectSSID.format(ssid)
-    web.sendResponse(rootHTML.format(dropdownHtml))
-        
+    print('Received request at root:', request)
+    ssid_list = [ssid.decode('utf-8') for ssid, *_ in wm.scan()]
+    dropdown_html = ''.join(selectSSID.format(ssid) for ssid in ssid_list)
+    response_html = rootHTML.format(dropdown_html)
+    web.sendResponse(response_html)
+            
 @web.route('/configure')
 def configure(request):
-    print(request)
-    print('pageConfig')
-    wifi = 'ssid=([^&]*)&pwd=([^&]*)'
-    mqtt = '&ip=([^&]*)&username=([^&]*)&pwdm=([^&]*)'
-    regx = wifi + mqtt
-    match = web.requestX(regx)
-    print(match)
-    if not match:
-        web.sendResponse('''
-            <p>Parameters not found!</p>
-        ''', 400)
-    elif match:
-        ssid = match.group(1).decode('utf-8')
-        password = match.group(2).decode('utf-8')
-        ipQT = match.group(3).decode('utf-8')
-        userQT = match.group(4).decode('utf-8')
-        passQT = match.group(5).decode('utf-8')
-        print(ssid, password, ipQT, userQT)
-        if len(ssid) == 0:
-            web.sendResponse('''
-                <p>SSID must be provided!</p>
-                <p>Go back and try again!</p>
-            ''', 400)
-        else:
-            wm.wifiConnect(ssid, password)
-            time.sleep(5)  # Wait for Wi-Fi connection to complete
-            if wm.isConnected():
-                wm.writeConfigWifi(id=ssid, password=password)
-                mqt.writeConfig(id=userQT, password=passQT, server=ipQT)
-                web.sendResponse(f'''
-                    <p>Successfully connected to</p>
-                    <h1>{ssid}</h1>
-                    <p>IP address: {wm.getAddress()[0]}</p>
-                ''')
-                time.sleep(5)
-                machine.reset()
-            else:
-                web.sendResponse(f'''
-                    <p>Could not connect to</p>
-                    <h1>{ssid}</h1>
-                    <p>Go back and try again!</p>
-                ''')
+    print('Received request at /configure:', request)
+    
+    try:
+        headers, body = request.split(b'\r\n\r\n', 1)
+    except ValueError:
+        web.sendResponse('<p>Invalid request format!</p><p>Please try again.</p>', 400)
+        return
+    
+    params = parse_qs(body.decode('utf-8'))
+    print(params)
 
-def sendMqt():
-    i = 0
-    print('stard MQTT')
+    ssid = params.get('ssid', '')
+    password = params.get('pwd', '')
+    ip_qt = params.get('ip', '')
+    user_qt = params.get('username', '')
+    pass_qt = params.get('pwdm', '')
+
+    if not ssid:
+        web.sendResponse('<p>SSID must be provided!</p><p>Please try again.</p>', 400)
+        return
+    
+    web.sendResponse('<p>Connecting to Wi-Fi...</p>')
+    wm.wifiConnect(ssid, password)
+    time.sleep(5) 
+    
+    if wm.isConnected():
+        wm.writeConfigWifi(id=ssid, password=password)
+        mqt.writeConfig(id=user_qt, password=pass_qt, server=ip_qt)
+        ip_address = wm.getAddress()[0]
+        success_html = f'''
+            <p>Successfully connected to <strong>{ssid}</strong></p>
+            <p>IP address: {ip_address}</p>
+            <p>MQTT configuration saved successfully.</p>
+        '''
+        web.sendResponse(success_html)
+        time.sleep(2)
+    else:
+        error_html = f'''
+            <p>Could not connect to <strong>{ssid}</strong></p>
+            <p>Please check your credentials and try again.</p>
+        '''
+        web.sendResponse(error_html, 400)
+
+def sendMqtt():
+    print('Starting MQTT thread')
+    counter = 0
     while True:     
         time.sleep(5)
-        i += 1
+        counter += 1
         try:
             mqt.connect()
             if mqt.isConnected():
-                mqt.publish('hello/topic', f'hello{str(i)} ip:{wm.getAddress()}')
+                message = f'hello {counter} ip: {wm.getAddress()}'
+                mqt.publish('hello/topic', message)
                 mqt.disconnect()
-                print(f'hello{str(i)}')
-                time.sleep(1)
+                print('Published message:', message)
         except Exception as error: 
-            print(f'MQTT ERROR {error}')
+            print('MQTT ERROR:', error)
 
 def main():
     wm.openAP(True)
     wm.connect()
-    _thread.start_new_thread(sendMqt, ())
+    _thread.start_new_thread(sendMqtt, ())
     _thread.start_new_thread(web.run, ())
-    
 
-main()
+if __name__ == '__main__':
+    main()
+
 

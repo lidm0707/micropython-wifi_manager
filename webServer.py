@@ -35,14 +35,14 @@ class WebServer:
                     if not data:
                         break
                     self.request += data
-                check = self.requestX(r'(?:GET|POST) (\/.*?) HTTP\/')
+                check = self.__requestX(r'(?:GET|POST) (\/.*?) HTTP\/')
                 if check:
                     url = check.group(1).decode('utf-8').rstrip()
                 else:
                     url = check
                 if url:
                     if url in self.routes:
-                        self.routes[url](self.request)
+                        self.routes[url](self.urlDecode())
                     else:
                         self.sendResponse("404 Not Found", 404)
                 self.client.close()
@@ -95,7 +95,8 @@ class WebServer:
         self.client.sendall(head + css + body)
         self.client.close()
 
-    def requestX(self, reg):
+    def __requestX(self, reg):
         pattern = re.compile(reg)
         res = pattern.search(self.urlDecode())
         return res
+

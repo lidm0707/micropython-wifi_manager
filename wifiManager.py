@@ -3,7 +3,7 @@ import socket
 import re
 import ujson
 import time
-
+##192.168.4.1
 class WifiManager:
     def __init__(self, ssid='esp32-ap', password='12345678', reboot=True, debug=False):
         self.wlanSta = network.WLAN(network.STA_IF)
