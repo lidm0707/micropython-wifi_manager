@@ -14,7 +14,6 @@ web = WebServer(debug=True)
 
 
 def parseQs(qs):
-    """ฟังก์ชันแยก query string เป็นพารามิเตอร์"""
     params = {}
     pairs = qs.split('&')
     for pair in pairs:
