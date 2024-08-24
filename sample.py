@@ -79,6 +79,7 @@ def sendMqtt():
     print('Starting MQTT thread')
     counter = 0
     check = 0
+    errCheck = 0
     while True:
         if  wm.isConnected():
             if wm.stateAP == 1:
@@ -92,8 +93,11 @@ def sendMqtt():
                     mqt.publish('hello/topic', message)
                     mqt.disconnect()
                     print('Published message:', message)
-            except Exception as error: 
+            except Exception as error:
                 print('MQTT ERROR:', error)
+                errCheck += 1
+                if errCheck > 10:
+                    machine.reset()
         else :
             if wm.stateAP == 0:
                 check += 1
