@@ -15,6 +15,11 @@ class WebServer:
 
     def __addRoute(self, path, handler):
         self.routes[path] = handler
+        
+    def __requestX(self, reg):
+        pattern = re.compile(reg)
+        res = pattern.search(self.urlDecode())
+        return res
 
     def route(self, path):
         def decorator(func):
@@ -95,8 +100,5 @@ class WebServer:
         self.client.sendall(head + css + body)
         self.client.close()
 
-    def __requestX(self, reg):
-        pattern = re.compile(reg)
-        res = pattern.search(self.urlDecode())
-        return res
+
 

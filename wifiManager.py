@@ -23,7 +23,7 @@ class WifiManager:
         self.config = 'config.json'
         self.wlanSta.disconnect()
         self.wlanSta.scan()
-
+        self.stateAP = 0
         self.reboot = reboot
         self.debug = debug
 
@@ -31,11 +31,14 @@ class WifiManager:
         self.wlanAp.active(state)
         if state:
             self.wlanAp.config(essid=self.apSSID, password=self.apPASSWORD, authmode=self.apAUTHMODE)
+            self.stateAP = 1
+        else:
+            self.stateAP = 0
 
     def scan(self):
         return self.wlanSta.scan()
 
-    def isConnected(self):
+    def connect(self):
         if self.wlanSta.isconnected():
             return
         profiles = self.readConfigWifi()
@@ -103,7 +106,7 @@ class WifiManager:
         print('Trying to connect to:', ssid)
         if ssid:
             self.wlanSta.connect(ssid, password)
-            for _ in range(100):
+            for _ in range(20):
                 if self.wlanSta.isconnected():
                     print('\nConnected! Network information:', self.wlanSta.ifconfig())
                     return True

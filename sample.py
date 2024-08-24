@@ -12,7 +12,6 @@ wm = WifiManager(debug=True)
 mqt = MqttManager(debug=True)
 web = WebServer(debug=True)
 
-
 def parseQs(qs):
     params = {}
     pairs = qs.split('&')
@@ -53,13 +52,13 @@ def configure(request):
         web.sendResponse('<p>SSID must be provided!</p><p>Please try again.</p>', 400)
         return
     
-    web.sendResponse('<p>Connecting to Wi-Fi...</p>')
     wm.wifiConnect(ssid, password)
     time.sleep(5) 
     
     if wm.isConnected():
         wm.writeConfigWifi(id=ssid, password=password)
-        mqt.writeConfig(id=userQt, password=passQt, server=ipQt)
+        if ipQt != '':
+            mqt.writeConfig(id=userQt, password=passQt, server=ipQt)
         ipAddress = wm.getAddress()[0]
         successHtml = f'''
             <p>Successfully connected to <strong>{ssid}</strong></p>
@@ -68,6 +67,7 @@ def configure(request):
         '''
         web.sendResponse(successHtml)
         time.sleep(2)
+        wm.openAP(False)
     else:
         errorHtml = f'''
             <p>Could not connect to <strong>{ssid}</strong></p>
@@ -78,18 +78,30 @@ def configure(request):
 def sendMqtt():
     print('Starting MQTT thread')
     counter = 0
-    while True:     
-        time.sleep(5)
-        counter += 1
-        try:
-            mqt.connect()
-            if mqt.isConnected():
-                message = f'hello {counter} ip: {wm.getAddress()}'
-                mqt.publish('hello/topic', message)
-                mqt.disconnect()
-                print('Published message:', message)
-        except Exception as error: 
-            print('MQTT ERROR:', error)
+    check = 0
+    while True:
+        if  wm.isConnected():
+            if wm.stateAP == 1:
+                wm.stateAP == 0
+            time.sleep(2)
+            counter += 1
+            try:
+                mqt.connect()
+                if mqt.isConnected():
+                    message = f'hello {counter} ip: {wm.getAddress()}'
+                    mqt.publish('hello/topic', message)
+                    mqt.disconnect()
+                    print('Published message:', message)
+            except Exception as error: 
+                print('MQTT ERROR:', error)
+        else :
+            if wm.stateAP == 0:
+                check += 1
+                if check > 10:
+                    wm.openAP(True)
+                    check = 0
+            time.sleep(2)
+                
 
 def main():
     wm.openAP(True)
